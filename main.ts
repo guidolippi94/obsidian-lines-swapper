@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 interface MyPluginSettings {
 	mySetting: string;
@@ -12,46 +12,52 @@ export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
 
 	async onload() {
-		console.log('loading plugin');
-
 		await this.loadSettings();
 
-		this.addRibbonIcon('dice', 'Sample Plugin', () => {
-			new Notice('This is a notice!');
-		});
-
-		this.addStatusBarItem().setText('Status Bar Text');
+		this.addCommand({
+			id: 'swap-line-above',
+			name: 'Swap Line Above',
+			editorCallback: (editor, _) => this.swapLineAbove(editor),
+			hotkeys: [
+				{
+					modifiers: ["Alt"],
+					key: "ArrowUp",
+				},
+			],
+		}
+		);
 
 		this.addCommand({
-			id: 'open-sample-modal',
-			name: 'Open Sample Modal',
-			// callback: () => {
-			// 	console.log('Simple Callback');
-			// },
-			checkCallback: (checking: boolean) => {
-				let leaf = this.app.workspace.activeLeaf;
-				if (leaf) {
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-					return true;
-				}
-				return false;
-			}
-		});
-
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		this.registerCodeMirror((cm: CodeMirror.Editor) => {
-			console.log('codemirror', cm);
-		});
-
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+			id: 'swap-line-below',
+			name: 'Swap Line Below',
+			editorCallback: (editor, _) => this.swapLineBelow(editor),
+			hotkeys: [
+				{
+					modifiers: ["Alt"],
+					key: "ArrowDown",
+				},
+			],
+		}
+		);
 	}
+
+ 	swapLineAbove(editor: Editor) : void {
+		const lineNumber = editor.getCursor().line;
+		const currentLineText = editor.getLine(lineNumber);
+		const previousLine = editor.getLine(lineNumber -1);
+		editor.setLine(lineNumber, previousLine);
+		editor.setLine(lineNumber -1, currentLineText);
+		editor.setCursor(lineNumber - 1);
+	} 
+ 
+	swapLineBelow(editor: Editor) : void {
+		const lineNumber = editor.getCursor().line;
+		const currentLineText = editor.getLine(lineNumber);
+		const nextLine = editor.getLine(lineNumber + 1);
+		editor.setLine(lineNumber, nextLine);
+		editor.setLine(lineNumber  +1, currentLineText);
+		editor.setCursor(lineNumber + 1);
+	} 
 
 	onunload() {
 		console.log('unloading plugin');
@@ -63,50 +69,5 @@ export default class MyPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
-
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		let {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		let {containerEl} = this;
-
-		containerEl.empty();
-
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue('')
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
 	}
 }
